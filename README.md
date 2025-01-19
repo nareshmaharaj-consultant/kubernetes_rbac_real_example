@@ -145,6 +145,185 @@ Enter 3 numbers min,max,cols separated by commas: 1,900,12
 174    43     675    9      380    60     555    127    505    471    764    191
 ...
 ```
+
+### Kubernetes Environment using Kind
+
+Visit the [Kind documentation](https://kind.sigs.k8s.io/docs/user/quick-start/) for detailed instructions on setting up a Kubernetes cluster using Kind.
+
+Once installed and your cluster set up check the nodes in your cluster:
+```
+kind get nodes
+
+kind-worker2
+kind-control-plane
+kind-worker
+kind-worker3
+```
+
+Create a pod file to deploy the server and client.
+
+First Create the namespace:
+```bash
+kubectl create namespace random-numbers
+```
+Server:
+
+```bash
+cat <<EOF> random-number-server.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: random-number-server
+  name: random-number-server
+  namespace: random-numbers
+spec:
+  containers:
+  - name: random-number-server
+    image: contactnkm/random-number-server:latest
+    ports:
+    - containerPort: 3215
+EOF
+```
+
+Create the service for this pod:
+```bash
+cat <<EOF> random-number-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: random-number-service
+  namespace: random-numbers
+spec:
+  selector:
+    app: random-number-server
+  ports:
+    - protocol: TCP
+      port: 3215
+      targetPort: 3215
+EOF
+```
+
+Run the following commands to deploy the random number server and random number service:
+
+```bash
+kubectl apply -f random-number-server.yaml
+kubectl apply -f random-number-service.yaml
+```
+
+We need to be able ti ensure our service DNS is working correctly. We can do this by creating a pod that will run a nslookup command to the service.
+
+```bash
+cat <<EOF> dnsutils.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dnsutils
+  namespace: default
+spec:
+  containers:
+  - name: dnsutils
+    image: gcr.io/kubernetes-e2e-test-images/dnsutils:1.3
+    command:
+      - sleep
+      - "3600"
+    imagePullPolicy: IfNotPresent
+  restartPolicy: Always
+EOF
+```
+
+```bash
+kubectl apply -f dnsutils.yaml
+```
+
+Run the nslookup command to the verify the service:
+```bash
+kubectl exec -ti dnsutils -n random-numbers -- n
+slookup random-number-service
+Server:         10.96.0.10
+Address:        10.96.0.10#53
+
+Name:   random-number-service.random-numbers.svc.cluster.local
+Address: 10.96.35.141
+```
+
+So we now know for sure our DNS is working correctly and our FQDN is `random-number-service.random-numbers.svc.cluster.local`
+
+In the client pod set the environment variable `RANDOM_NUMBER_SERVER` to the FQDN of the server service.
+
+Client:
+
+```bash
+cat <<EOF> random-number-client.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: random-number-client
+  name: random-number-client
+  namespace: random-numbers
+spec:
+  containers:
+  - name: random-number-client
+    image: contactnkm/random-number-client:latest
+    ports:
+    - containerPort: 3216
+    env:
+    - name: RANDOM_SERVER
+      value: "random-number-service.random-numbers.svc.cluster.local"
+EOF
+```
+
+Create a random number client service
+```bash
+cat <<EOF> random-number-client-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: random-number-client-service
+  namespace: random-numbers
+spec:
+  selector:
+    app: random-number-client
+  ports:
+    - protocol: TCP
+      port: 3216
+      targetPort: 3216
+EOF
+```
+
+Deploy the and client and random number client and random number service to the cluster:
+
+```bash
+kubectl apply -f random-number-client.yaml
+```
+
+Check that all the service endpoints are created, it should not show `none`.
+```bash
+kubectl get ep -n random-numbers
+
+NAME                           ENDPOINTS          AGE
+random-number-client-service   10.244.2.6:3216    12s
+random-number-service          10.244.1.12:3215   87s
+```
+
+### Testing the Client and Server
+Connect to the host using the dns utils pod and test the client and server.
+```bash
+kubectl exec -ti dnsutils -n random-numbers -- sh
+```
+Test the application and use ctrl-c to exit
+```bash
+nc random-number-client-service 3216
+
+Enter 3 numbers min,max,cols separated by commas: 10,36,6
+16      19      17      30      31      25
+28      14      35      32      29      34
+20      18      12      33      27      24
+36      23      22      26      21      10
+15      11      13
+```
+
 - Work in progress from here onwards.
 
 ### Deploying to Kubernetes

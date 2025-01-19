@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: random-number-client
+  name: random-number-client
+  namespace: random-numbers
+spec:
+  containers:
+  - name: random-number-client
+    image: contactnkm/random-number-client:latest
+    ports:
+    - containerPort: 3216
+    env:
+    - name: RANDOM_SERVER
+      value: "random-number-service.random-numbers.svc.cluster.local"
