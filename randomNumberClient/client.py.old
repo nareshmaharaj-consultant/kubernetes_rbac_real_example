@@ -1,0 +1,25 @@
+# Client
+import socket
+
+# Create a socket object
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+# Get local machine name
+host = socket.gethostname()
+port = 3215
+
+# Connect to the server
+s.connect((host, port))
+
+# Receive the random number from the server
+print(s.recv(1024).decode())
+
+# Close the connection
+s.close()
+
+## Build docker image for the client
+# docker build -t random-number-client .
+
+## Run the client container
+# docker run -it --network=host random-number-client
+
