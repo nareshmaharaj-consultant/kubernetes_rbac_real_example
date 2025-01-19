@@ -4,6 +4,7 @@ metadata:
   name: dnsutils
   namespace: random-numbers
 spec:
+  serviceAccountName: random-numbers-sa
   containers:
   - name: dnsutils
     image: gcr.io/kubernetes-e2e-test-images/dnsutils:1.3

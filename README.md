@@ -55,15 +55,12 @@ Before we begin, ensure you have the following installed on your machine:
 
 ### Server Code
 
-The **server code** is responsible for generating random numbers and exposing them over a network. It is located under:
-
-```bash
-kubernetes_rbac_real_example/randomNumberServer/server.py
-```
+The **server code** is responsible for generating random numbers and exposing them over a network. It is located under: `kubernetes_rbac_real_example/randomNumberServer/server.py`
 
 #### Create the Docker Image for the Server
 
-First, we need to create a Dockerfile for the server:
+First, we need to create a Dockerfile for the server: `kubernetes_rbac_real_example
+/randomNumberServer/Dockerfile` 
 
 ```dockerfile
 FROM python:3.7
@@ -82,15 +79,12 @@ docker push ${dockerhub_username}/random-number-server
 
 ### Client Code
 
-The **client code** connects to the server and retrieves the random numbers. It is located under:
-
-```bash
-kubernetes_rbac_real_example/randomNumberClient/client.py
-```
+The **client code** connects to the server and retrieves the random numbers. It is located under: `kubernetes_rbac_real_example/randomNumberClient/client.py`
 
 #### Create the Docker Image for the Client
 
-Create a Dockerfile for the client:
+Create a Dockerfile for the client: `kubernetes_rbac_real_example
+/randomNumberClient/Dockerfile`
 
 ```dockerfile
 FROM python:3.7
@@ -161,7 +155,11 @@ kind-worker
 kind-worker3
 ```
 
-Create a pod file to deploy the server and client.
+### Deploying RBAC to Kubernetes
+
+Once we've confirmed that the Docker containers work correctly, we can deploy both the server and client to a **Kubernetes cluster**. 
+
+Create a pod file to deploy the server and client. If you wish change the image to use your own dockerhub account. E.g. if your account name is `johnmcollins`, then the image is set to `johnmcollins/random-number-server` and `johnmcollins/random-number-client`.
 
 First, create the namespace:
 
@@ -335,9 +333,14 @@ Enter 3 numbers min,max,cols separated by commas: 10,36,6
 15      11      13
 ```
 
-### Deploying RBAC to Kubernetes
+### Using RBAC in Kubernetes
 
-Once we've confirmed that the Docker containers work correctly, we can deploy both the server and client to a **Kubernetes cluster**. The next step is to set up **RBAC** to allow the client to interact with the server.
+The next step is to set up **RBAC** to allow the client to interact with the server.
+
+Create a Service Account.
+```bash
+kubectl create sa random-numbers-sa -n  random-numbers
+```
 
 #### Step 1: Create a Role for Access
 
@@ -346,15 +349,17 @@ First, we create a **Role** that defines the permissions for accessing the serve
 For example, the role could be defined in a YAML file:
 
 ```yaml
+cat <<EOF> service-reader.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  namespace: default
+  namespace: random-numbers
   name: client-access-role
 rules:
 - apiGroups: [""]
-  resources: ["pods"]
+  resources: ["services"]
   verbs: ["get", "list"]
+EOF
 ```
 
 #### Step 2: Create a RoleBinding
@@ -364,26 +369,48 @@ Now, we create a **RoleBinding** to bind the "client-access-role" to the client 
 For example, the RoleBinding might look like this:
 
 ```yaml
+cat <<EOF> service-reader-binding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: client-rolebinding
-  namespace: default
+  name: client-access-role-binding
+  namespace: random-numbers
 subjects:
 - kind: ServiceAccount
-  name: default
-  namespace: default
+  name: random-numbers-sa
+  namespace: random-numbers
 roleRef:
   kind: Role
   name: client-access-role
   apiGroup: rbac.authorization.k8s.io
+EOF
 ```
 
 ### Testing in Kubernetes
 
 After deploying the server and client containers to Kubernetes, you can test the connection between them and verify that the **RoleBinding** is working.
 
-If everything is set up correctly, the client should be able to access the server and receive the random number table, just like it did in the Docker environment.
+Delete the client pod:
+```bash
+kubectl delete -f random-number-client.yaml
+```
+Add in the ServiceAccount to the client pod definition.
+
+```yaml
+spec:
+  serviceAccountName: random-numbers-sa
+  containers:
+  ...
+```
+Create the client pod again:
+```bash
+kubectl apply -f random-number-client.yaml
+```
+
+If everything is set up correctly, the client should be able to access the server and receive the random number table, just like it did in the Docker environment but can't do very much else. Let's test it out:
+
+Remove the existing client pod if it's still running.
+Change the role so that it cannot list services.
 
 ---
 

@@ -6,6 +6,7 @@ metadata:
   name: random-number-client
   namespace: random-numbers
 spec:
+  serviceAccountName: random-numbers-sa
   containers:
   - name: random-number-client
     image: contactnkm/random-number-client:latest
