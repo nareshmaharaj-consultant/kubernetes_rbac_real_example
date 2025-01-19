@@ -1,7 +1,3 @@
-Certainly! Here's an improved version of your blog post with better flow, structure, and clarity:
-
----
-
 # Implementing RBAC in Kubernetes: A Real-World Example
 
 In this article, we'll dive into how to implement **Role-Based Access Control (RBAC)** in Kubernetes through a practical, real-world example. While many tutorials cover RBAC concepts, they often remain abstract or overly simplified. By walking through an actual use case, you'll gain a better understanding of how to apply RBAC effectively in a Kubernetes cluster.
@@ -79,7 +75,9 @@ CMD ["python", "server.py"]
 To build the Docker image:
 
 ```bash
-docker build -t random-number-server .
+export dockerhub_username=<your_dockerhub_username>
+docker build -t ${dockerhub_username}/random-number-server .
+docker push ${dockerhub_username}/random-number-server
 ```
 
 ### Client Code
@@ -104,7 +102,9 @@ CMD ["python", "client.py"]
 To build the Docker image:
 
 ```bash
-docker build -t random-number-client .
+export dockerhub_username=<your_dockerhub_username>
+docker build -t ${dockerhub_username}/random-number-client .
+docker push ${dockerhub_username}/random-number-client
 ```
 
 ### Running the Docker Containers
