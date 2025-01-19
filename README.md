@@ -14,7 +14,7 @@ RBAC simplifies user assignments and ensures that access control is clear, consi
 
 ## What is a Role?
 
-In Kubernetes, a **Role** is a collection of permissions that define what actions are allowed on certain resources. Roles can be applied to users, groups, or even other roles (creating hierarchies). 
+In Kubernetes, a **Role** is a collection of permissions that define what actions are allowed on certain resources. Roles can be applied to users, groups, or even other roles (creating hierarchies).
 
 For example:
 - An "Admin" role might have permissions to **create, read, update, and delete** resources.
@@ -25,7 +25,7 @@ Roles are a key part of RBAC as they encapsulate the actions users or processes 
 
 ## What is a RoleBinding?
 
-A **RoleBinding** is the mechanism that binds a Role to a user, a group of users, or even other roles. A RoleBinding effectively grants the permissions defined in a Role to whoever is bound to it. 
+A **RoleBinding** is the mechanism that binds a Role to a user, a group of users, or even other roles. A RoleBinding effectively grants the permissions defined in a Role to whoever is bound to it.
 
 For example:
 - You can bind the "Admin" role to a user, which grants them full access to Kubernetes resources.
@@ -150,8 +150,9 @@ Enter 3 numbers min,max,cols separated by commas: 1,900,12
 
 Visit the [Kind documentation](https://kind.sigs.k8s.io/docs/user/quick-start/) for detailed instructions on setting up a Kubernetes cluster using Kind.
 
-Once installed and your cluster set up check the nodes in your cluster:
-```
+Once installed and your cluster set up, check the nodes in your cluster:
+
+```bash
 kind get nodes
 
 kind-worker2
@@ -162,11 +163,13 @@ kind-worker3
 
 Create a pod file to deploy the server and client.
 
-First Create the namespace:
+First, create the namespace:
+
 ```bash
 kubectl create namespace random-numbers
 ```
-Server:
+
+#### Server
 
 ```bash
 cat <<EOF> random-number-server.yaml
@@ -187,6 +190,7 @@ EOF
 ```
 
 Create the service for this pod:
+
 ```bash
 cat <<EOF> random-number-service.yaml
 apiVersion: v1
@@ -211,7 +215,7 @@ kubectl apply -f random-number-server.yaml
 kubectl apply -f random-number-service.yaml
 ```
 
-We need to be able ti ensure our service DNS is working correctly. We can do this by creating a pod that will run a nslookup command to the service.
+We need to ensure our service DNS is working correctly. We can do this by creating a pod that will run a `nslookup` command to the service.
 
 ```bash
 cat <<EOF> dnsutils.yaml
@@ -236,10 +240,10 @@ EOF
 kubectl apply -f dnsutils.yaml
 ```
 
-Run the nslookup command to the verify the service:
+Run the `nslookup` command to verify the service:
+
 ```bash
-kubectl exec -ti dnsutils -n random-numbers -- n
-slookup random-number-service
+kubectl exec -ti dnsutils -n random-numbers -- nslookup random-number-service
 Server:         10.96.0.10
 Address:        10.96.0.10#53
 
@@ -247,11 +251,11 @@ Name:   random-number-service.random-numbers.svc.cluster.local
 Address: 10.96.35.141
 ```
 
-So we now know for sure our DNS is working correctly and our FQDN is `random-number-service.random-numbers.svc.cluster.local`
+So we now know for sure our DNS is working correctly, and our FQDN is `random-number-service.random-numbers.svc.cluster.local`.
 
-In the client pod set the environment variable `RANDOM_NUMBER_SERVER` to the FQDN of the server service.
+In the client pod, set the environment variable `RANDOM_NUMBER_SERVER` to the FQDN of the server service.
 
-Client:
+#### Client
 
 ```bash
 cat <<EOF> random-number-client.yaml
@@ -274,7 +278,8 @@ spec:
 EOF
 ```
 
-Create a random number client service
+Create a random number client service:
+
 ```bash
 cat <<EOF> random-number-client-service.yaml
 apiVersion: v1
@@ -292,13 +297,15 @@ spec:
 EOF
 ```
 
-Deploy the and client and random number client and random number service to the cluster:
+Deploy the client and random number client service to the cluster:
 
 ```bash
 kubectl apply -f random-number-client.yaml
+kubectl apply -f random-number-client-service.yaml
 ```
 
-Check that all the service endpoints are created, it should not show `none`.
+Check that all the service endpoints are created; it should not show `none`:
+
 ```bash
 kubectl get ep -n random-numbers
 
@@ -308,11 +315,15 @@ random-number-service          10.244.1.12:3215   87s
 ```
 
 ### Testing the Client and Server
-Connect to the host using the dns utils pod and test the client and server.
+
+Connect to the host using the dnsutils pod and test the client and server:
+
 ```bash
 kubectl exec -ti dnsutils -n random-numbers -- sh
 ```
-Test the application and use ctrl-c to exit
+
+Test the application and use `Ctrl-C` to exit:
+
 ```bash
 nc random-number-client-service 3216
 
@@ -324,9 +335,7 @@ Enter 3 numbers min,max,cols separated by commas: 10,36,6
 15      11      13
 ```
 
-- Work in progress from here onwards.
-
-### Deploying to Kubernetes
+### Deploying RBAC to Kubernetes
 
 Once we've confirmed that the Docker containers work correctly, we can deploy both the server and client to a **Kubernetes cluster**. The next step is to set up **RBAC** to allow the client to interact with the server.
 
@@ -372,7 +381,7 @@ roleRef:
 
 ### Testing in Kubernetes
 
-After deploying the server and client containers to Kubernetes, you can test the connection between them and verify that the **RoleBinding** is working. 
+After deploying the server and client containers to Kubernetes, you can test the connection between them and verify that the **RoleBinding** is working.
 
 If everything is set up correctly, the client should be able to access the server and receive the random number table, just like it did in the Docker environment.
 
@@ -384,6 +393,3 @@ In this article, we've walked through a real-world example of using **RBAC** in 
 
 Remember, RBAC is a powerful feature that helps you ensure that users and services in your cluster have the appropriate permissions based on their roles. With RBAC, you can implement fine-grained access control to safeguard your resources.
 
----
-
-Let me know if you need any further modifications or more details!
