@@ -373,7 +373,7 @@ Now, we create a **RoleBinding** to bind the "client-access-role" to the client 
 For example, the RoleBinding might look like this:
 
 ```yaml
-cat <<EOF> binding.yaml
+cat <<EOF> role-binding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -392,7 +392,118 @@ EOF
 
 ### Testing in Kubernetes
 
-After deploying the server and client containers to Kubernetes, you can test the connection between them and verify that the **RoleBinding** is working.
+After deploying the server and client containers to Kubernetes, you can test the connection between them and verify that the **RoleBinding** is working. We will do this with a simple curl application.
+
+Create the curl application:
+```bash
+cat <<EOF> curlapp.yaml
+apiVersion: v1
+kind: Pod
+metadata:   
+  name: curlo
+  namespace: random-numbers
+  labels:
+    app: curlo
+spec:
+  serviceAccountName: random-numbers-sa
+  containers:
+  - name: curlo
+    image: curlimages/curl
+    command: ["sleep","999999"]
+EOF
+
+kubectl apply -f curlapp.yaml
+```
+
+Connect to the host using the following command
+```bash
+kubectl exec -it curlo -n random-numbers -- /bin/sh
+```
+
+In order to use curl with https we will need to use the ca.pem file and token in the command.
+
+```bash
+cat /var/run/secrets/kubernetes.io/serviceaccount/token > TOKEN
+export TOKEN=$(cat TOKEN)
+curl -k --header "Authorization: Bearer $TOKEN" --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt https://kubernetes.default.svc
+```
+For various reasons which I will let you discover this can be abbreviated to
+
+```bash
+export CURL_CA_BUNDLE=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+curl -k --header "Authorization: Bearer $TOKEN" https://kubernetes.default.svc
+```
+
+Run the following and you should be able to see the details of the service we had set up earlier
+
+```bash
+curl -k --header "Authorization: Bearer $TOKEN" https://kubernetes.default.svc/api/v1/namespaces/random-numbers/services/random-number-service
+```
+Result:
+```json
+{
+  "kind": "Service",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "random-number-service",
+    "namespace": "random-numbers",
+    "uid": "504cd44b-7e10-4ea2-9ee8-a912909f6dee",
+    "resourceVersion": "183093",
+    "creationTimestamp": "2025-01-19T19:52:28Z",
+    "managedFields": [
+  ...
+  "status": {
+    "loadBalancer": {}
+  }
+```
+
+Try to get the details of the other pods that are running in the cluster under the same namespace using the same curl command. You should get a 403 Forbidden error.
+
+```bash
+curl -k --header "Authorization: Bearer $TOKEN" https://kubernetes.default.svc/api/v1/namespaces/random-numbers/pods
+```
+Result
+```json
+{
+  "kind": "Status",
+  "apiVersion": "v1",
+  "metadata": {},
+  "status": "Failure",
+  "message": "pods is forbidden: User \"system:serviceaccount:random-numbers:random-numbers-sa\" cannot list resource \"pods\" in API group \"\" in the namespace \"random-numbers\"",
+  "reason": "Forbidden",
+  "details": {
+    "kind": "pods"
+  },
+  "code": 403
+}
+```
+
+Right! you can see that we now have the precise level of role baseed access control so that we can only access only the services and configmaps in the random-numbers namespace.
+
+Go ahead and create a configmap for oour min, max and table size values for our random number generator. We will use these values in our client pod to generate the random number table.
+
+```bash
+kubectl create configmap random-number-config --from-literal=min=1 --from-literal=max=100 --from-literal=table-size=10 -n random-numbers
+```
+
+Here is the yaml file version of the same command:
+```yaml
+cat <<EOF> random-number-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: random-number-config
+  namespace: random-numbers
+data:
+  min: "1"
+  max: "100"
+  table-size: "10"
+  table-name: "random-numbers"
+EOF
+
+kubectl apply -f random-number-configmap.yaml
+```
 
 Delete the client pod:
 ```bash
@@ -406,9 +517,11 @@ spec:
   containers:
   ...
 ```
-Create the client pod again:
+Create the client pod, roles and role bindings :
 ```bash
 kubectl apply -f random-number-client.yaml
+kubectl apply -f roles.yaml
+kubectl apply -f role-binding.yaml
 ```
 
 If everything is set up correctly, the client should be able to access the server and receive the random number table, just like it did in the Docker environment but can't do very much else. Let's test it out:
