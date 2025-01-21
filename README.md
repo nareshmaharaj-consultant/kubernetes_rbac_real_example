@@ -505,11 +505,14 @@ kubectl apply -f random-number-configmap.yaml
 ```
 ### Python Kubernetes API Client
 
-We need to modify the client pod to use the Kubernetes API to get the configmap values and use them to generate the random number table.
+We need to modify the client pod to use the Kubernetes API to get the `configmap` values and use them to generate the random number table.
 
 We will use the Kubernetes API client for Python to get the configmap values.
 
-Use pip to install the Kubernetes API client for Python in your Dockerfile.
+The source code can be found here: `kubernetes_rbac_real_example
+/randomNumberClientCM`
+
+Don't forget to use `pip` to install the Kubernetes API client for Python in your Dockerfile.
 ```bash
 pip install kubernetes
 ```
@@ -587,7 +590,7 @@ Waiting for server response...
 Press [Enter] to get a new set of values using the kubernetes config map:
 
 ```
-Now try changing the min, max and count values in the config map and see if the client can pick up the new values.
+Now try changing the `min`, `max` and `count` values in the config map and see if the client can pick up the new values.
 
 ```bash
 apiVersion: v1
