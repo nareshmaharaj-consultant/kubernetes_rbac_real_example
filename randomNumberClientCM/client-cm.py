@@ -1,6 +1,16 @@
 # Client
 import socket
 import os
+from kubernetes import client, config
+
+def get_configmap_values():
+    config.load_incluster_config()
+    v1 = client.CoreV1Api()
+    configmap = v1.read_namespaced_config_map(name="random-number-config", namespace="random-numbers")
+    min_value = int(configmap.data["min"])
+    max_value = int(configmap.data["max"])
+    table_size = int(configmap.data["table-size"])
+    return min_value, max_value, table_size
 
 def is_socket_connected(sock):
     try:
@@ -37,6 +47,13 @@ while True:
         
         while True:        
 
+            # Get the values from the config map
+            values  = get_configmap_values()
+            min_value = values[0]
+            max_value = values[1]
+            table_size = values[2]
+            print("min_value: ", min_value, "max_value: ", max_value, "table_size: ", table_size)
+            
             # Check if the client is still connected
             if is_socket_connected(connection) == False:
                 print("Connection closed - waiting for new connections")
@@ -46,9 +63,19 @@ while True:
             else:
                 print("Connection is open")
 
-            # Establish connection with client.
-            connection.send('\nEnter 3 numbers min,max,cols separated by commas: '.encode())
+            
+
+            # Log the values to the console
+            sendValues = (str(min_value) + "," + str(max_value) + "," + str(table_size))
+            print("Sending values to client: ", sendValues)
+
+            # We dont want to keep looping when client is connected just get the client to hit enter for a new set of values
+            connection.send('\nPress [Enter] to get a new set of values using the kubernetes config map: '.encode())
             data = connection.recv(1024).decode()
+            
+            # Send the values to the client
+            sendOutput = "Will send these values to server: " + sendValues + "\nWaiting for server response...\n"
+            connection.send(sendOutput.encode())
 
             # Create socket object connect to the server for random numbers
             # If no data from rnaom number server but random but is connected
@@ -58,7 +85,7 @@ while True:
             try:           
                 randomNumberServerSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)        
                 randomNumberServerSocket.connect((random_number_server_host, 3215))
-                randomNumberServerSocket.send(data.encode())
+                randomNumberServerSocket.send(sendValues.encode())
                 randomNumberServerSocket.settimeout(0.5)
                 data = randomNumberServerSocket.recv(1024).decode()
             except socket.timeout:

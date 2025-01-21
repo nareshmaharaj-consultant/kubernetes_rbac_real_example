@@ -5,4 +5,4 @@ WORKDIR /app
 # Use RUN to install dependencies
 RUN pip install kubernetes
 
-CMD ["python", "client.py"]
+CMD ["python", "client-cm.py"]

@@ -420,22 +420,21 @@ Connect to the host using the following command
 kubectl exec -it curlo -n random-numbers -- /bin/sh
 ```
 
-In order to use curl with https we will need to use the ca.pem file and token in the command.
+In order to use curl with https we will need to use the ca.crt file and token in the command.
 
 ```bash
 cat /var/run/secrets/kubernetes.io/serviceaccount/token > TOKEN
 export TOKEN=$(cat TOKEN)
 curl -k --header "Authorization: Bearer $TOKEN" --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt https://kubernetes.default.svc
 ```
-For various reasons which I will let you discover this can be abbreviated to
+For various reasons which I will let you discover how this can be shortened to
 
 ```bash
 export CURL_CA_BUNDLE=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-
 curl -k --header "Authorization: Bearer $TOKEN" https://kubernetes.default.svc
 ```
 
-Run the following and you should be able to see the details of the service we had set up earlier
+With the following command you should be able to see the service we had created earlier
 
 ```bash
 curl -k --header "Authorization: Bearer $TOKEN" https://kubernetes.default.svc/api/v1/namespaces/random-numbers/services/random-number-service
@@ -458,7 +457,7 @@ Result:
   }
 ```
 
-Try to get the details of the other pods that are running in the cluster under the same namespace using the same curl command. You should get a 403 Forbidden error.
+Try to list the other pods that are running in the cluster within the same namespace using the following curl command. You should get a 403 Forbidden error.
 
 ```bash
 curl -k --header "Authorization: Bearer $TOKEN" https://kubernetes.default.svc/api/v1/namespaces/random-numbers/pods
@@ -479,9 +478,9 @@ Result
 }
 ```
 
-Right! you can see that we now have the precise level of role baseed access control so that we can only access only the services and configmaps in the random-numbers namespace.
+Great! Now we have achieved the exact level of role-based access control needed to limit access exclusively to services and configmaps within the random-numbers namespace.
 
-Go ahead and create a configmap for oour min, max and table size values for our random number generator. We will use these values in our client pod to generate the random number table.
+Next, create a ConfigMap to store the min, max, and table size values for our random number generator. These values will be used by the client pod to generate the random number table.
 
 ```bash
 kubectl create configmap random-number-config --from-literal=min=1 --from-literal=max=100 --from-literal=table-size=10 -n random-numbers
@@ -504,31 +503,136 @@ EOF
 
 kubectl apply -f random-number-configmap.yaml
 ```
+### Python Kubernetes API Client
 
-Delete the client pod:
+We need to modify the client pod to use the Kubernetes API to get the configmap values and use them to generate the random number table.
+
+We will use the Kubernetes API client for Python to get the configmap values.
+
+Use pip to install the Kubernetes API client for Python in your Dockerfile.
 ```bash
-kubectl delete -f random-number-client.yaml
+pip install kubernetes
 ```
-Add in the ServiceAccount to the client pod definition.
 
-```yaml
+Here is the code required to get the configmap values:
+```python
+import os
+from kubernetes import client, config
+def get_configmap_values():
+    config.load_incluster_config()
+    v1 = client.CoreV1Api()
+    configmap = v1.read_namespaced_config_map(name="random-number-config", namespace="random-numbers")
+    min_value = int(configmap.data["min"])
+    max_value = int(configmap.data["max"])
+    table_size = int(configmap.data["table-size"])
+    return min_value, max_value, table_size
+```
+
+Build a new docker image called `{your-username}/random-number-client-cm` and push it to docker hub.
+
+```bash
+docker build -t {your-username}/random-number-client-cm .
+docker push {your-username}/random-number-client-cm
+```
+
+
+Lets double check we have our service account added the client pod definition and the lastest docker image for the client pod.
+
+```json
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: random-number-client
+  name: random-number-client
+  namespace: random-numbers
 spec:
   serviceAccountName: random-numbers-sa
   containers:
-  ...
+  - name: random-number-client
+    image: {your-docker-username}/random-number-client-cm:latest
+    ports:
+    - containerPort: 3216
+    env:
+    - name: RANDOM_SERVER
+      value: "random-number-service.random-numbers.svc.cluster.local"
 ```
-Create the client pod, roles and role bindings :
+
 ```bash
+kubectl delete -f random-number-client.yaml
 kubectl apply -f random-number-client.yaml
-kubectl apply -f roles.yaml
-kubectl apply -f role-binding.yaml
 ```
 
 If everything is set up correctly, the client should be able to access the server and receive the random number table, just like it did in the Docker environment but can't do very much else. Let's test it out:
 
-Remove the existing client pod if it's still running.
-Change the role so that it cannot list services.
+```bash
+kubectl exec -ti dnsutils -n random-numbers -- sh
 
+/ # nc random-number-client-service 3216
+
+Press [Enter] to get a new set of values using the kubernetes config map: 
+Will send these values to server: 1,100,10
+Waiting for server response...
+74      80      40      26      17      72      87      38      64      79
+97      96      63      86      7       58      75      52      76      32
+47      29      5       83      68      90      60      100     16      70
+84      9       44      37      48      49      98      81      27      54
+45      61      51      25      43      57      65      89      92      19
+22      24      55      28      53      15      13      8       10      39
+20      77      31      93      91      12      62      94      34      42
+35      1       67      85      78      59      14      99      11      33
+21      30      95      2       6       82      4       3       56      66
+50      69      18      23      46      71      36      88      41      73
+
+Press [Enter] to get a new set of values using the kubernetes config map:
+
+```
+Now try changing the min, max and count values in the config map and see if the client can pick up the new values.
+
+```json
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: random-number-config
+  namespace: random-numbers
+data:
+  min: "64"
+  max: "256"
+  table-size: "8"
+  table-name: "random-numbers"
+...
+```
+Save the file and hit enter again in the terminal running the dnsutils
+```bash
+Press [Enter] to get a new set of values using the kubernetes config map: 
+Will send these values to server: 64,256,8
+Waiting for server response...
+219     195     91      88      104     93      134     144
+246     131     241     239     128     210     190     114
+163     183     191     161     115     145     160     70
+136     218     171     67      98      237     248     256
+227     173     80      202     206     71      129     126
+249     154     245     216     193     204     92      66
+75      169     106     189     155     185     238     179
+103     230     99      221     149     137     152     138
+117     174     100     247     215     170     105     68
+120     74      180     141     231     186     139     250
+79      122     209     121     127     123     83      157
+94      235     199     211     201     125     188     95
+229     205     220     198     147     236     217     176
+97      167     213     234     203     225     84      172
+208     142     254     150     175     148     87      228
+158     253     135     64      242     81      233     212
+133     72      118     73      243     143     226     159
+146     140     178     77      124     151     112     109
+164     184     251     153     96      197     65      240
+78      132     166     252     165     194     102     244
+86      187     116     232     222     196     110     111
+119     90      168     255     101     76      82      85
+162     89      108     69      223     200     214     182
+207     192     113     177     130     156     107     181
+224
+```
 ---
 
 ### Conclusion
@@ -537,23 +641,4 @@ In this article, we've walked through a real-world example of using **RBAC** in 
 
 Remember, RBAC is a powerful feature that helps you ensure that users and services in your cluster have the appropriate permissions based on their roles. With RBAC, you can implement fine-grained access control to safeguard your resources.
 
-Notes:
-
-Curl:
-kubectl run curlo2 --image=curlimages/curl:8.11.1 --restart=Always -- /bin/sh -c "sleep 999999"
-
-kubectl create clusterrolebinding permissive-binding --clusterrole=cluster-admin --group=system:serviceaccounts
-clusterrolebinding.rbac.authorization.k8s.io/permissive-binding created
-
-cat curlapp.yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: curlo
-spec:
-  containers:
-    - name: curlo
-      image: curlimages/curl
-      command: ["sleep","999999"]
-
-
+---

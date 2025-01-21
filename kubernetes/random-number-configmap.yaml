@@ -4,7 +4,7 @@ metadata:
   name: random-number-config
   namespace: random-numbers
 data:
-  min: "1"
-  max: "100"
-  table-size: "10"
+  min: "64"
+  max: "256"
+  table-size: "8"
   table-name: "random-numbers"

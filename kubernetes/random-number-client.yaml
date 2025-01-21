@@ -9,7 +9,7 @@ spec:
   serviceAccountName: random-numbers-sa
   containers:
   - name: random-number-client
-    image: contactnkm/random-number-client:latest
+    image: contactnkm/random-number-client-cm:latest
     ports:
     - containerPort: 3216
     env:
