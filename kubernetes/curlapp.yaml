@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:   
+  name: curlo
+  namespace: random-numbers
+  labels:
+    app: curlo
+spec:
+  serviceAccountName: random-numbers-sa
+  containers:
+  - name: curlo
+    image: curlimages/curl
+    command: ["sleep","999999"]

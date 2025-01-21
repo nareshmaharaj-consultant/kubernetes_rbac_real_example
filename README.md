@@ -349,7 +349,7 @@ First, we create a **Role** that defines the permissions for accessing the serve
 For example, the role could be defined in a YAML file:
 
 ```yaml
-cat <<EOF> service-reader.yaml
+cat <<EOF> roles.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -357,8 +357,12 @@ metadata:
   name: client-access-role
 rules:
 - apiGroups: [""]
-  resources: ["services"]
-  verbs: ["get", "list"]
+  resources:
+    - configmaps
+    - services # Add other resources as needed
+  verbs: 
+    - get
+    - list # Add other verbs as needed
 EOF
 ```
 
@@ -369,7 +373,7 @@ Now, we create a **RoleBinding** to bind the "client-access-role" to the client 
 For example, the RoleBinding might look like this:
 
 ```yaml
-cat <<EOF> service-reader-binding.yaml
+cat <<EOF> binding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -419,4 +423,24 @@ Change the role so that it cannot list services.
 In this article, we've walked through a real-world example of using **RBAC** in a Kubernetes environment. We demonstrated how to set up roles and RoleBindings to control access between two applications—one acting as a server and the other as a client. By building the applications with **Docker**, deploying them to Kubernetes, and using RBAC, you now have a solid understanding of how to implement access control in a Kubernetes cluster.
 
 Remember, RBAC is a powerful feature that helps you ensure that users and services in your cluster have the appropriate permissions based on their roles. With RBAC, you can implement fine-grained access control to safeguard your resources.
+
+Notes:
+
+Curl:
+kubectl run curlo2 --image=curlimages/curl:8.11.1 --restart=Always -- /bin/sh -c "sleep 999999"
+
+kubectl create clusterrolebinding permissive-binding --clusterrole=cluster-admin --group=system:serviceaccounts
+clusterrolebinding.rbac.authorization.k8s.io/permissive-binding created
+
+cat curlapp.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: curlo
+spec:
+  containers:
+    - name: curlo
+      image: curlimages/curl
+      command: ["sleep","999999"]
+
 
