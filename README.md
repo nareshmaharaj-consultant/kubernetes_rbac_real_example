@@ -420,14 +420,14 @@ Connect to the host using the following command
 kubectl exec -it curlo -n random-numbers -- /bin/sh
 ```
 
-In order to use curl with https we will need to use the ca.crt file and token in the command.
+In order to use curl with https we will need to use the certificate file `ca.crt` file and `token` in the `curl` command.
 
 ```bash
 cat /var/run/secrets/kubernetes.io/serviceaccount/token > TOKEN
 export TOKEN=$(cat TOKEN)
 curl -k --header "Authorization: Bearer $TOKEN" --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt https://kubernetes.default.svc
 ```
-For various reasons which I will let you discover how this can be shortened to
+For various reasons which I will let you discover, you will notice how this can be shortened to:
 
 ```bash
 export CURL_CA_BUNDLE=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
@@ -457,7 +457,7 @@ Result:
   }
 ```
 
-Try to list the other pods that are running in the cluster within the same namespace using the following curl command. You should get a 403 Forbidden error.
+Try to list the other pods that are running in the cluster within the same namespace using the following `curl` command. You should get a `403 Forbidden error`.
 
 ```bash
 curl -k --header "Authorization: Bearer $TOKEN" https://kubernetes.default.svc/api/v1/namespaces/random-numbers/pods
@@ -478,9 +478,9 @@ Result
 }
 ```
 
-Great! Now we have achieved the exact level of role-based access control needed to limit access exclusively to services and configmaps within the random-numbers namespace.
+Great! Now we have achieved the exact level of role-based access control needed to limit access exclusively to `services` and `configmaps` within the `random-numbers` namespace.
 
-Next, create a ConfigMap to store the min, max, and table size values for our random number generator. These values will be used by the client pod to generate the random number table.
+Next, create a `ConfigMap` to store the `min`, `max`, and `table -size` values for our random number generator. These values will be used by the client pod to generate the random number table.
 
 ```bash
 kubectl create configmap random-number-config --from-literal=min=1 --from-literal=max=100 --from-literal=table-size=10 -n random-numbers
@@ -509,9 +509,9 @@ We need to modify the client pod to use the Kubernetes API to get the `configmap
 
 We will use the Kubernetes API client for Python to get the configmap values.
 
-The source code can be found here: `kubernetes_rbac_real_example/randomNumberClientCM`
+The source code can be found here: `kubernetes_rbac_real_example/randomNumberClientCM/client-cm.py`
 
-Don't forget to use `pip` to install the Kubernetes API client for Python in your Dockerfile.
+We will need to add the kubernetes library to our Docker image. Use `pip` to install the Kubernetes API client for Python in your Dockerfile ( note we have already done this for you ).
 ```bash
 pip install kubernetes
 ```
@@ -538,7 +538,7 @@ docker push {your-username}/random-number-client-cm
 ```
 
 
-Lets double check we have our service account added the client pod definition and the lastest docker image for the client pod.
+Lets double check we have our service account added the client pod definition and the lastest docker image for the client pod. Remember, the service account is used to restrict access to the Kubernetes API using RBAC.
 
 ```bash
 apiVersion: v1
@@ -589,7 +589,7 @@ Waiting for server response...
 Press [Enter] to get a new set of values using the kubernetes config map:
 
 ```
-Now try changing the `min`, `max` and `count` values in the config map and see if the client can pick up the new values.
+Now try changing the `min`, `max` and `table-size` values in the config map and see if the client can pick up the new values.
 
 ```bash
 apiVersion: v1
@@ -604,7 +604,12 @@ data:
   table-name: "random-numbers"
 ...
 ```
-Save the file and hit enter again in the terminal running the dnsutils
+Save the file apply the changes.
+```bash
+kubectl apply -f random-number-configmap.yaml
+```
+Visit the window where you are running the dnsutils pod and hit enter again in the terminal. This should now fetch a new table using the updated `min`,`max` and `table-size` values. 
+
 ```bash
 Press [Enter] to get a new set of values using the kubernetes config map: 
 Will send these values to server: 64,256,8
