@@ -509,8 +509,7 @@ We need to modify the client pod to use the Kubernetes API to get the `configmap
 
 We will use the Kubernetes API client for Python to get the configmap values.
 
-The source code can be found here: `kubernetes_rbac_real_example
-/randomNumberClientCM`
+The source code can be found here: `kubernetes_rbac_real_example/randomNumberClientCM`
 
 Don't forget to use `pip` to install the Kubernetes API client for Python in your Dockerfile.
 ```bash
