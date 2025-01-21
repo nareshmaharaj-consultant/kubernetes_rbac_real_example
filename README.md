@@ -53,6 +53,11 @@ Before we begin, ensure you have the following installed on your machine:
 - `kubectl` (Kubernetes command-line tool)
 - `netcat` (for network testing)
 
+### Clone the Git Repository to Follow Along
+
+Access the source code on [GitHub](https://github.com/nareshmaharaj-consultant/kubernetes_rbac_real_example).
+
+
 ### Server Code
 
 The **server code** is responsible for generating random numbers and exposing them over a network. It is located under: `kubernetes_rbac_real_example/randomNumberServer/server.py`
