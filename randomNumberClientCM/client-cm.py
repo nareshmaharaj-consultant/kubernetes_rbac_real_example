@@ -47,12 +47,12 @@ while True:
         
         while True:        
 
-            # Get the values from the config map
-            values  = get_configmap_values()
-            min_value = values[0]
-            max_value = values[1]
-            table_size = values[2]
-            print("min_value: ", min_value, "max_value: ", max_value, "table_size: ", table_size)
+            # # Get the values from the config map
+            # values  = get_configmap_values()
+            # min_value = values[0]
+            # max_value = values[1]
+            # table_size = values[2]
+            # print("min_value: ", min_value, "max_value: ", max_value, "table_size: ", table_size)
             
             # Check if the client is still connected
             if is_socket_connected(connection) == False:
@@ -63,15 +63,21 @@ while True:
             else:
                 print("Connection is open")
 
-            
+
+            # We dont want to keep looping when client is connected just get the client to hit enter for a new set of values
+            connection.send('\nPress [Enter] to fetch min, max and count values from the kubernetes config map: '.encode())
+            data = connection.recv(1024).decode()
+
+            # Get the values from the config map
+            values  = get_configmap_values()
+            min_value = values[0]
+            max_value = values[1]
+            table_size = values[2]
+            print("min_value: ", min_value, "max_value: ", max_value, "table_size: ", table_size)
 
             # Log the values to the console
             sendValues = (str(min_value) + "," + str(max_value) + "," + str(table_size))
             print("Sending values to client: ", sendValues)
-
-            # We dont want to keep looping when client is connected just get the client to hit enter for a new set of values
-            connection.send('\nPress [Enter] to get a new set of values using the kubernetes config map: '.encode())
-            data = connection.recv(1024).decode()
             
             # Send the values to the client
             sendOutput = "Will send these values to server: " + sendValues + "\nWaiting for server response...\n"

@@ -440,7 +440,7 @@ With the following command you should be able to see the service we had created 
 curl -k --header "Authorization: Bearer $TOKEN" https://kubernetes.default.svc/api/v1/namespaces/random-numbers/services/random-number-service
 ```
 Result:
-```json
+```bash
 {
   "kind": "Service",
   "apiVersion": "v1",
@@ -538,7 +538,7 @@ docker push {your-username}/random-number-client-cm
 
 Lets double check we have our service account added the client pod definition and the lastest docker image for the client pod.
 
-```json
+```bash
 apiVersion: v1
 kind: Pod
 metadata:
@@ -589,7 +589,7 @@ Press [Enter] to get a new set of values using the kubernetes config map:
 ```
 Now try changing the min, max and count values in the config map and see if the client can pick up the new values.
 
-```json
+```bash
 apiVersion: v1
 kind: ConfigMap
 metadata:
